@@ -11,6 +11,11 @@
 
 #ifdef VMALLOC
 #include "vmalloc.h"
+#define MALLOC(size) vmalloc(vmPCM, size) 
+#define FREE(ptr) free(vmPCM, ptr) 
+#else
+#define MALLOC(size) malloc(size)
+#define FREE(ptr) free(ptr)
 #endif
 
 typedef struct grpRecHdr {
