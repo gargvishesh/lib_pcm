@@ -23,21 +23,13 @@
 #define DB_FILE "../tables/lineitem.raw.1"
 #define FUNC_GROUPBY readAndEnjoyByHashing
 //#define FUNC_GROUPBY readAndEnjoyBySorting
-#ifdef VMALLOC
-#define MALLOC(size) malloc(size); 
-#define FREE(ptr) free(ptr);
-#else
-#define MALLOC(size) vmalloc(vmPCM, size);
-#define FREE(ptr) free(vmPCM, ptr);
-#endif
 
 /*Arrangement of valid bits : 8-1 16-9....*/
 
 #define CHECK_VALID(valid, index) ( valid[index/8] & ( 1<<(index%8)) )
 #define SET_VALID(valid, index)   ( valid[index/8] |= ( 1<<(index%8)) )
 
-#define DRAM_MEMORY_SIZE (256*MB)
-#define PCM_MEMORY_SIZE (1*GB)
+#define HT_MEMORY_SIZE (256*MB)
 #define OVERFLOW_PARTITION_SIZE (256*KB)
 
 
