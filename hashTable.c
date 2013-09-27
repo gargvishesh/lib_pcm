@@ -173,10 +173,11 @@ int initHT(UINT32 HTBucketCount) {
      * pointer to getFreePageByEviction*/
     getFreePage = getFreePageFromFreeList;
 #if 1
-    pageCount = (DRAM_MEMORY_SIZE / (sizeof (pageHash)));
+    pageCount = (HT_MEMORY_SIZE / (sizeof (pageHash)));
+    
 #else
     //Leave space for twice the number of DB records + hash table structures
-    pageCount = (DRAM_MEMORY_SIZE / (sizeof (page))-
+    pageCount = (HT_MEMORY_SIZE / (sizeof (page))-
             (NUM_PASSES * BUCKET_COUNT * DBRecordSize * 2) / sizeof (page) -
             (BUCKET_COUNT * sizeof (sBucket)) / sizeof (page));
 
@@ -439,7 +440,6 @@ void calculateFinalTally() {
 
     }
 }
-#endif
 
 void FREESpace() {
 
@@ -478,7 +478,6 @@ void FREESpace() {
     FREE(sHT->pBucket);
     FREE(sHT);
 }
-#if 0
 
 void processNewTupleByHashing(char* pAttr, float aggColValue, int pass) {
     char * pRecAddr;
