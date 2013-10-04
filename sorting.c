@@ -45,81 +45,82 @@ UINT32 numPivots;
 UINT8 arrayElemSize;
 int writes;
 
-void swapTuples(char* ptr1, char* ptr2){
-    char * temp = (char*)malloc(arrayElemSize);
+void swapTuples(char* ptr1, char* ptr2) {
+    char * temp = (char*) malloc(arrayElemSize);
     memcpy(temp, ptr1, arrayElemSize);
     memcpy(ptr1, ptr2, arrayElemSize);
     memcpy(ptr2, temp, arrayElemSize);
-    printf("Putting %d in place of %d\n", *(int*)ptr2, *(int*)ptr1);
+    printf("Putting %d in place of %d\n", *(int*) ptr2, *(int*) ptr1);
     free(temp);
 }
 
 void arrayInit() {
-        int i;
-        for(i=0; i<arrayElemCount; i++){
-                a[i] = i;
-                //a[i] = rand();        
-        }
+    int i;
+    for (i = 0; i < arrayElemCount; i++) {
+        a[i] = i;
+        //a[i] = rand();        
+    }
 }
 
-
-void sortPivots(){
+void sortPivots() {
     /*Using Selection Sort to keep it simple*/
     int i,
             j,
             min;
-    for (i=0; i<numPivots; i++){
+    for (i = 0; i < numPivots; i++) {
         min = i;
-        for(j=i+1;j<numPivots; j++){
-            if(Compare(pivots + (arrayElemSize*min), pivots+(arrayElemSize *j) ) > 0){
+        for (j = i + 1; j < numPivots; j++) {
+            if (Compare(pivots + (arrayElemSize * min), pivots + (arrayElemSize * j)) > 0) {
                 min = j;
             }
         }
-        if (min != i){
-            swapTuples(pivots + (arrayElemSize*min), pivots+(arrayElemSize *i));
-            }
+        if (min != i) {
+            swapTuples(pivots + (arrayElemSize * min), pivots + (arrayElemSize * i));
+        }
     }
 }
-int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTuples compareTup){
-    
-        //numSplits = PCM_SIZE/2*DRAM_SIZE; 
+
+int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTuples compareTup) {
+
+    //numSplits = PCM_SIZE/2*DRAM_SIZE; 
     numSplits = 5;
-        numPivots = numSplits - 1;
-        /*Don't store just indices in pivots to the original array. When you 
-         more around elements in arrays, those indices are no longer valid*/
-        //pivots = (UINT32*)malloc((numSplits-1) * sizeof(UINT32));
-        arrayElemSize = stepSize;
-        UINT32 count;
-        Compare = compareTup;
-        srand(13);
-        /*Pivots will be 1 less than #splits*/
-        pivots = (char*)malloc((numSplits-1) * arrayElemSize);
-        UINT8 index;
-        for(index=0; index < numPivots; index++){
-            memcpy(pivots + (index * arrayElemSize),
+    numPivots = numSplits - 1;
+    /*Don't store just indices in pivots to the original array. When you 
+     more around elements in arrays, those indices are no longer valid*/
+    //pivots = (UINT32*)malloc((numSplits-1) * sizeof(UINT32));
+    arrayElemSize = stepSize;
+    UINT32 count;
+    Compare = compareTup;
+    srand(13);
+    /*Pivots will be 1 less than #splits*/
+    pivots = (char*) malloc((numSplits - 1) * arrayElemSize);
+    UINT8 index;
+    for (index = 0; index < numPivots; index++) {
+        memcpy(pivots + (index * arrayElemSize),
                 a + (arrayElemSize * (rand() % arrayElemCount)),
                 arrayElemSize);
-        }
-        
-        sortPivots();
-        
-        count = 1;
-        for(index=1; index< numSplits -1; index++){
-            if (Compare(pivots + (arrayElemSize * index),
+    }
+
+    sortPivots();
+
+    count = 1;
+    for (index = 1; index < numSplits - 1; index++) {
+        if (Compare(pivots + (arrayElemSize * index),
                 pivots + (arrayElemSize * (index - 1))) != 0) {
             memcpy(pivots + (arrayElemSize * count),
                     pivots + (arrayElemSize * index),
                     arrayElemSize);
             count += 1;
-            }
-        }       
-        numPivots = count;
-        numSplits = numPivots+1;
-        *start = (int*)malloc((numSplits+1) * sizeof(int));
-        *currPartitionPtr = (int*)malloc((numSplits+1) * sizeof(int));
-        return 0;
+        }
+    }
+    numPivots = count;
+    numSplits = numPivots + 1;
+    *start = (int*) malloc((numSplits + 1) * sizeof (int));
+    *currPartitionPtr = (int*) malloc((numSplits + 1) * sizeof (int));
+    return 0;
 }
 #if 1
+
 /*We have p Pivots 0...p-1 and p+1 Partitions 0..p 
   Hence when we return a Partition on the basis of Pivot :
  * if value < Pivot[0]
@@ -127,52 +128,47 @@ int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTup
  * if value greater than partition p, partition is p+1*/
 
 UINT32 getPartitionId(char *tuplePtr) {
-        //long long num = (value*612);
-    UINT32 beg =0 , end = numPivots - 1, mid;
+    //long long num = (value*612);
+    UINT32 beg = 0, end = numPivots - 1, mid;
     SINT32 comparisonResult;
     /*Do a binary search here*/
-    while (beg <= end){
-        mid = (beg+end)/2;
+    while (beg <= end) {
+        mid = (beg + end) / 2;
         comparisonResult = Compare(pivots + (arrayElemSize * mid), tuplePtr);
-        if (comparisonResult < 0){
+        if (comparisonResult < 0) {
             /*Case if it is greater than greatest pivot*/
-            if (mid == numPivots-1){
-                return mid+1;
-            }
-            /*If it is greater than both this and next pivot*/
-            else if(Compare(pivots + (arrayElemSize* (mid+1)), tuplePtr) < 0){
+            if (mid == numPivots - 1) {
+                return mid + 1;
+            }                /*If it is greater than both this and next pivot*/
+            else if (Compare(pivots + (arrayElemSize * (mid + 1)), tuplePtr) < 0) {
                 beg = mid + 1;
-            }
-            /*Exactly equal to the next pivot*/
-            else if(Compare(pivots + (arrayElemSize* (mid+1)), tuplePtr) == 0){
+            }                /*Exactly equal to the next pivot*/
+            else if (Compare(pivots + (arrayElemSize * (mid + 1)), tuplePtr) == 0) {
                 return mid + 2;
-            }
-            /*If it lies between this and next pivot*/
-            else{
+            }                /*If it lies between this and next pivot*/
+            else {
                 return mid + 1;
             }
-        }
-        /*It is lesser than this pivot*/
-        else if (comparisonResult > 0){
+        }            /*It is lesser than this pivot*/
+        else if (comparisonResult > 0) {
             /* If lesser than first pivot*/
-            if(mid == 0){
+            if (mid == 0) {
                 return mid;
             }
             end = mid - 1;
-        }
-        /*It is equal to this pivot*/
+        }            /*It is equal to this pivot*/
         else
             return mid + 1;
     }
-        //return  ( num  % (sHT->HTBucketCount*NUM_PASSES) );
+    //return  ( num  % (sHT->HTBucketCount*NUM_PASSES) );
 }
 #else
+
 int getPartitionId(int value) {
-        return value%numSplits ;
-        //return  ( num  % (sHT->HTBucketCount*NUM_PASSES) );
+    return value % numSplits;
+    //return  ( num  % (sHT->HTBucketCount*NUM_PASSES) );
 }
 #endif
-
 
 int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples compareTup) {
 
@@ -187,9 +183,9 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
     //arrayInit(); 
     arrayElemCount = arrElemCount;
     InitSort(&partitionBeginnings, &currPartitionPtr, arrElemSize, compareTup);
-        for (i = 0; i < numPivots; i++) {
-        printf("Pivots:%d\n", *(int*)(pivots+(sizeof(int)*i)));
-    }   
+    for (i = 0; i < numPivots; i++) {
+        printf("Pivots:%d\n", *(int*) (pivots + (sizeof (int)*i)));
+    }
     //for(i=0; i<arrayElemCount; i++) 
     //printf("%d ", a[i]);
 #if 0
@@ -207,62 +203,61 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
     /*---------------------------------------------*/
 #endif 
     UINT8 partitionId;
-    int * count = (int*)malloc(numSplits * sizeof(int));
+    int * count = (int*) malloc(numSplits * sizeof (int));
     for (i = 0; i < arrayElemCount; i++) {
         partitionId = getPartitionId(a + arrayElemSize * i);
         count[partitionId]++;
     }
     for (i = 0; i < numSplits; i++) {
         printf("Count:%d\n", count[i]);
-    }   
+    }
     /*Coalesce empty partitions / partitions less than threshold.
       Each split i corresponds to pivot (i-1) and pivot (i) except. 
      * Example split 2 corresponds to pivot 1 and pivot 2. 
      * Hence, when we coalesce a split i with i+1, pivot i
      * should be removed. Note: We do this run 1 less times than numSplits 
      * as last split's count is immaterial __|__|__|__|__ */
-    UINT32 runningCount=0,
+    UINT32 runningCount = 0,
             windowCount;
-    UINT8 newNumPivots  = 0, newNumSplits = 1;
-    UINT8 THRESHHOLD  = 1;
-    for (i = 0; i < numSplits -1 ; i++) {
+    UINT8 newNumPivots = 0, newNumSplits = 1;
+    UINT8 THRESHHOLD = 1;
+    for (i = 0; i < numSplits - 1; i++) {
         runningCount += count[i];
         windowCount = count[i];
-        while((i < (numSplits -1)) && (windowCount < THRESHHOLD) )
-        {
+        while ((i < (numSplits - 1)) && (windowCount < THRESHHOLD)) {
             i++;
             runningCount += count[i];
             windowCount += count[i];
         }
-        if(i != (numSplits - 1)){
+        if (i != (numSplits - 1)) {
             memcpy(pivots + (newNumPivots * arrayElemSize),
-                pivots + (arrayElemSize * i),
-                arrayElemSize);
+                    pivots + (arrayElemSize * i),
+                    arrayElemSize);
             newNumPivots++;
             partitionBeginnings[newNumSplits++] = runningCount;
-            
+
         }
-        
-        
-        }
+
+
+    }
     numPivots = newNumPivots;
     numSplits = newNumSplits;
-        
+
     for (i = 0; i < numPivots; i++) {
-        printf("Pivots:%d\n", *(int*)(pivots+(sizeof(int)*i)));
-    } 
+        printf("Pivots:%d\n", *(int*) (pivots + (sizeof (int)*i)));
+    }
     for (i = 0; i < numSplits; i++) {
         printf("partitions[%d]:%d\n", i, partitionBeginnings[i]);
     }
-    
+
 #if 0
-    
-     for (i = 0; i < numSplits; i++) {
+
+    for (i = 0; i < numSplits; i++) {
         printf("Partition Beginnings:%d\n", partitionBeginnings[i]);
     }
 #endif
     /*For Debug*/
-    
+
     /*-----------*/
     partitionBeginnings[numSplits] = arrayElemCount;
     memcpy(currPartitionPtr, partitionBeginnings, (numSplits + 1) * sizeof (int));
@@ -304,24 +299,26 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
 
     return (EXIT_SUCCESS);
 }
-SINT32 compareRecords(void *p1, void *p2){
-    printf("Comparing %d %d\n", *(int*)p1 , *(int*)p2);
-    return (*(int*)p1 - *(int*)p2);
+
+SINT32 compareRecords(void *p1, void *p2) {
+    printf("Comparing %d %d\n", *(int*) p1, *(int*) p2);
+    return (*(int*) p1 - *(int*) p2);
 }
-void main(){
-    int ARRAY[] = {8,3,4,5,2,6,7, 2, 3, 13, 15, 3, 4,3,4,19,5,7};
+
+void main() {
+    int ARRAY[] = {8, 3, 4, 5, 2, 6, 7, 2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
     //int ARRAY[] = {2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
-    a = (char*)ARRAY;
+    a = (char*) ARRAY;
     int i;
     //printf("Sizeof Array %d\n", sizeof(ARRAY));
-    printf("\n ===Orig Array====\n"); 
-    for(i=0 ; i<18; i++){
+    printf("\n ===Orig Array====\n");
+    for (i = 0; i < 18; i++) {
         printf("a[%d]: %d\n", i, ARRAY[i]);
     }
-    createPartitions(0, 18, sizeof(int), compareRecords);
-    
-    printf("\n ===Final Array====\n"); 
-    for(i=0 ; i<18; i++){
+    createPartitions(0, 18, sizeof (int), compareRecords);
+
+    printf("\n ===Final Array====\n");
+    for (i = 0; i < 18; i++) {
         printf("a[%d]: %d\n", i, ARRAY[i]);
     }
 }
