@@ -30,12 +30,19 @@
 #define DRAM_SIZE 256*KB
 #define PCM_SIZE 256*MB
 
-typedef SINT32 (*compareTuples)(void * p1, void * p2);
+#define qsort _quicksort 
+#define MSB_ZERO 0
+#define MSB_ONE 1
+#define BYTE 8
+int resolved = 1 << (BYTE * sizeof (int) - 1);
+
+typedef int (*compareTuples)(const void * p1, const void * p2);
 
 compareTuples Compare;
 char *pivots;
-
-#define POS_ARRAY_TYPE UINT32
+/*Used as partition start ptr for quicksort. Replace with something cleaner later*/
+char *partitionStart;
+/*--------------------*/
 #define UNDO 
 
 UINT32 arrayElemCount;
@@ -44,13 +51,26 @@ UINT32 numSplits;
 UINT32 numPivots;
 UINT8 arrayElemSize;
 int writes;
+UINT32 *partitionBeginnings = NULL;
+char* outputBufferPtr = NULL;
+
+#ifdef UNDO
+POS_ARRAY_TYPE *pos;
+
+void initSortElems(int numElem) {
+    int i;
+    for (i = 0; i < numElem; i++) {
+        pos[i] = i;
+    }
+}
+#endif
 
 void swapTuples(char* ptr1, char* ptr2) {
     char * temp = (char*) malloc(arrayElemSize);
     memcpy(temp, ptr1, arrayElemSize);
     memcpy(ptr1, ptr2, arrayElemSize);
     memcpy(ptr2, temp, arrayElemSize);
-    printf("Putting %d in place of %d\n", *(int*) ptr2, *(int*) ptr1);
+    //printf("Putting %d in place of %d\n", *(int*) ptr2, *(int*) ptr1);
     free(temp);
 }
 
@@ -115,8 +135,8 @@ int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTup
     }
     numPivots = count;
     numSplits = numPivots + 1;
-    *start = (int*) malloc((numSplits + 1) * sizeof (int));
-    *currPartitionPtr = (int*) malloc((numSplits + 1) * sizeof (int));
+    *start = (UINT32*) malloc((numSplits + 1) * sizeof (int));
+    *currPartitionPtr = (UINT32*) malloc((numSplits + 1) * sizeof (int));
     return 0;
 }
 #if 1
@@ -139,28 +159,31 @@ UINT32 getPartitionId(char *tuplePtr) {
             /*Case if it is greater than greatest pivot*/
             if (mid == numPivots - 1) {
                 return mid + 1;
-            }                /*If it is greater than both this and next pivot*/
+            }/*If it is greater than both this and next pivot*/
             else if (Compare(pivots + (arrayElemSize * (mid + 1)), tuplePtr) < 0) {
                 beg = mid + 1;
-            }                /*Exactly equal to the next pivot*/
+            }/*Exactly equal to the next pivot*/
             else if (Compare(pivots + (arrayElemSize * (mid + 1)), tuplePtr) == 0) {
                 return mid + 2;
-            }                /*If it lies between this and next pivot*/
+            }/*If it lies between this and next pivot*/
             else {
                 return mid + 1;
             }
-        }            /*It is lesser than this pivot*/
+        }/*It is lesser than this pivot*/
         else if (comparisonResult > 0) {
             /* If lesser than first pivot*/
             if (mid == 0) {
                 return mid;
             }
             end = mid - 1;
-        }            /*It is equal to this pivot*/
+        }/*It is equal to this pivot*/
         else
             return mid + 1;
     }
-    //return  ( num  % (sHT->HTBucketCount*NUM_PASSES) );
+    printf("Shouldn't have reached here");
+    assert(0);
+    return -1;
+
 }
 #else
 
@@ -170,18 +193,19 @@ int getPartitionId(int value) {
 }
 #endif
 
-int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples compareTup) {
+int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples compareTup, char* outputBuffer) {
 
 
-    UINT32 *partitionBeginnings = NULL;
+
     UINT32 i, j, k;
-    UINT32 presentCount = 0, partitionPresent = INT_MAX, partitionLast;
+    UINT32 partitionPresent = INT_MAX, partitionLast;
     UINT32 partitionStart, partitionEnd, firstVictimLoc;
     BOOL flag;
     char *presentVictim = (char*) malloc(arrElemSize);
     UINT32 *currPartitionPtr;
     //arrayInit(); 
     arrayElemCount = arrElemCount;
+    outputBufferPtr = outputBuffer;
     InitSort(&partitionBeginnings, &currPartitionPtr, arrElemSize, compareTup);
     for (i = 0; i < numPivots; i++) {
         printf("Pivots:%d\n", *(int*) (pivots + (sizeof (int)*i)));
@@ -300,83 +324,37 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
     return (EXIT_SUCCESS);
 }
 
-SINT32 compareRecords(void *p1, void *p2) {
+int compareRecords(const void *p1, const void *p2) {
     printf("Comparing %d %d\n", *(int*) p1, *(int*) p2);
     return (*(int*) p1 - *(int*) p2);
 }
-
-void main() {
-    int ARRAY[] = {8, 3, 4, 5, 2, 6, 7, 2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
-    //int ARRAY[] = {2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
-    a = (char*) ARRAY;
-    int i;
-    //printf("Sizeof Array %d\n", sizeof(ARRAY));
-    printf("\n ===Orig Array====\n");
-    for (i = 0; i < 18; i++) {
-        printf("a[%d]: %d\n", i, ARRAY[i]);
-    }
-    createPartitions(0, 18, sizeof (int), compareRecords);
-
-    printf("\n ===Final Array====\n");
-    for (i = 0; i < 18; i++) {
-        printf("a[%d]: %d\n", i, ARRAY[i]);
-    }
-}
-
-#if 0
-
-typedef struct sortElemNoUndo {
-    UINT32 value;
-} sortElemNoUndo;
-#define qsort _quicksort 
-#define MSB_ZERO 0
-#define MSB_ONE 1
-#define BYTE 8
-int resolved = 1 << (BYTE * sizeof (int) - 1);
-UINT32 array[arrayElemCount];
-UINT32 dummyArray[arrayElemCount];
-UINT32 numElem;
-double totalCycles;
-void *regionDRAM, *regionPCM;
-
 extern void _quicksort(void *const pbase, size_t total_elems, size_t size,
         __compar_fn_t cmp);
 
-#ifdef UNDO
-POS_ARRAY_TYPE *pos;
-
-void initSortElems() {
-    int i;
-    for (i = 0; i < numElem; i++) {
-        pos[i] = i;
-    }
-}
-#endif
-
-int compareElem(const void *a, const void *b) {
-    UINT32 sE1 = *(UINT32*) a;
-    UINT32 sE2 = *(UINT32*) b;
-    return sE1 - sE2;
-}
-
-void sortPartition(int start, int currPartitionPtr) {
+void sortPartition(int start, int end) {
     int i;
     //printf("\n\n==Before Sort==\n\n");
-    //for (i=start; i<currPartitionPtr;i++){
+    //for (i=start; i<end;i++){
     //printf("Array: %u\n", array[i]);
     //}
-    qsort(array + start, currPartitionPtr - start, sizeof (int), compareElem);
+    printf("Start %d, End %d", start, end);
+    printf("\n\n==Original==\n\n");
+    for (i = 0; i < end - start; i++) {
+        printf("%d\n", *(int*) (a + ((start + i) * arrayElemSize)));
+    }
+    qsort(a + (start * arrayElemSize), end - start, arrayElemSize, Compare);
     printf("\n\n==Sorted==\n\n");
+    for (i = 0; i < end - start; i++) {
+        printf("%d\n", *(int*) (a + ((start + i) * arrayElemSize)));
+    }
 
-    //}
-    int fp1 = open("sortOutput", O_WRONLY);
-    clock_t end1;
+
 #ifdef UNDO
-    POS_ARRAY_TYPE presentTargetLoc, nextTargetLoc, tempVictim;
-    UINT32 tempArrayVictim, presentArrayCandidate;
+    POS_ARRAY_TYPE presentTargetLoc, nextTargetLoc;
+    char *presentArrayCandidate = (char*) malloc(arrayElemSize);
     char flag;
     UINT32 firstVictimLoc;
-    for (i = 0; i < currPartitionPtr - start; i++) {
+    for (i = 0; i < end - start; i++) {
         if (!!(pos[i] & resolved) == MSB_ONE) //!! to convert to boolean
             continue;
         if (pos[i] == i) {
@@ -385,18 +363,20 @@ void sortPartition(int start, int currPartitionPtr) {
         }
         firstVictimLoc = i;
         presentTargetLoc = pos[i];
-        presentArrayCandidate = array[start + i];
+        memcpy(presentArrayCandidate, a + (arrayElemSize * (start + i)), arrayElemSize);
         flag = 1;
         pos[i] |= resolved;
         while (flag) {
             if (presentTargetLoc == firstVictimLoc) {
                 flag = 0;
             }
-            assert(presentTargetLoc < currPartitionPtr - start);
+            assert(presentTargetLoc < end - start);
 
-            tempArrayVictim = array[start + presentTargetLoc];
-            array[start + presentTargetLoc] = presentArrayCandidate;
-            presentArrayCandidate = tempArrayVictim;
+            swapTuples(a + ((start + presentTargetLoc) * arrayElemSize),
+                    presentArrayCandidate);
+            //tempArrayVictim = array[start + presentTargetLoc];
+            //array[start + presentTargetLoc] = presentArrayCandidate;
+            //presentArrayCandidate = tempArrayVictim;
 
             nextTargetLoc = pos[presentTargetLoc];
             pos[presentTargetLoc] |= resolved;
@@ -404,72 +384,108 @@ void sortPartition(int start, int currPartitionPtr) {
         }
     }
 
-    start_counter();
+    //start_counter();
 #if 1
-    for (i = 0; i < currPartitionPtr - start; i++) {
-        //write(array+(pos[i] & (~resolved)), sizeof(UINT32), 1, fp1);
-        write(fp1, array + (pos[i] & (~resolved)), sizeof(UINT32));
+    *(UINT32*) outputBufferPtr = end - start;
+    outputBufferPtr += sizeof (UINT32);
+    for (i = 0; i < end - start; i++) {
+        *(POS_ARRAY_TYPE*) outputBufferPtr = (pos[i] & (~resolved));
+        outputBufferPtr += sizeof (POS_ARRAY_TYPE);
+    }
+
+    for (i = 0; i < end - start; i++) {
+        memcpy(outputBufferPtr,
+                a + ((start + i) * arrayElemSize),
+                arrayElemSize);
+        outputBufferPtr += arrayElemSize;
         pos[i] = i;
     }
 #else
-    write(fp1, array, sizeof (UINT32) *(currPartitionPtr - start));
+    write(fp1, array, sizeof (UINT32) *(end - start));
 #endif
     //printf("\n\n==Original==\n\n");
-    //for (i=0; i<currPartitionPtr-start;i++){
+    //for (i=0; i<end-start;i++){
     //printf("Array After Undo:%d\n", array[start+i]);
     //printf("Pos After Undo:%d\n", pos[i]);
     //}
 #else 
-    //write(array, sizeof(UINT32), currPartitionPtr-start, fp1);
-    write(fp1, array, sizeof(UINT32) *(currPartitionPtr - start));
+    //write(array, sizeof(UINT32), end-start, fp1);
+    write(fp1, array, sizeof (UINT32) *(end - start));
 #endif
     //sync();
-    totalCycles += get_counter();
+    //    totalCycles += get_counter();
 }
 
 int main() {
-    int i, index;
-    //Dividing by 2 to give space for program and stack data
-    /*Not using macro SORTELEM for numElem to make sure same 
-    number of elements are compared, i.e. space overhead in 
-    UNDO case is utilized for caching in NOUNDO case*/
-    numElem = DRAM_MEMORY_SIZE / (2 * sizeof (UINT32));
+
+    /* For debugging            */
+    int ARRAY[] = {8, 3, 4, 5, 2, 6, 7, 2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
+    //int ARRAY[] = {2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
+    a = (char*) ARRAY;
+
+    int SIZE = 18;
+    int i;
+    char *outputBuffer = (char*) malloc(sizeof (int)*1000);
+    printf("OutputBuffer Initial :%d", outputBuffer);
+    printf("\n ===Orig Array====\n");
+    for (i = 0; i < SIZE; i++) {
+        printf("a[%d]: %d\n", i, ARRAY[i]);
+    }
+
+    createPartitions(0, 18, sizeof (int), compareRecords, outputBuffer);
+
+    printf("\n ===Partitioned Array====\n");
+    for (i = 0; i < SIZE; i++) {
+        printf("a[%d]: %d\n", i, ARRAY[i]);
+    }
+
 #ifdef UNDO
+    UINT32 numElem = 20;
     pos = (POS_ARRAY_TYPE*) malloc(numElem * sizeof (POS_ARRAY_TYPE));
     initSortElems(numElem);
 #endif
-    int numPasses = arrayElemCount / numElem;
-    int fp2;
-    fp2 = open("sortOutput", O_RDONLY);
-
-    for (i = 0; i < numPasses; i++) {
-/* Code to model time taken to read the input records from file */
-    start_counter();
-    read(fp2, array, DRAM_MEMORY_SIZE / 2);
-    totalCycles += get_counter();
-    close(fp2);
-/* *************************************************************/
-    for (index = 0; index < arrayElemCount; index++)
+#if 0
+    for (index = 0; index < arrayElemCount; index++) {
         //array[i] = rand();	
         array[index] = arrayElemCount - index;
-
-        sortPartition(i*numElem, (i + 1) * numElem);
-    }
-    //Sort Remaining Part of Array 
-    sortPartition(numPasses*numElem, arrayElemCount);
-    //printf("Time : %" PRIu64 "!cycles \n", totalCycles);
-    start_counter(); 
-    sync();
-    totalCycles += get_counter();
-
-    printf("Time : %lf cycles \n", totalCycles);
-    printf("Forcing PCM cache data to be written to PCM\n");
-    UINT32 sum = array[rand() % arrayElemCount];
-    for (i = 0; i < arrayElemCount; i++) {
-        sum += array[i];
-    }
-    printf("Sum=%u\n", sum);
-    printf("random pcm element=%u\n", array[rand() % arrayElemCount]);
-    return 0;
-}
 #endif
+        for (i = 0; i < numSplits; i++) {
+            /*Used as partition start ptr for quicksort. Replace with something cleaner later*/
+
+            partitionStart = a + (arrayElemSize * partitionBeginnings[i]);
+            sortPartition(partitionBeginnings[i], partitionBeginnings[i + 1]);
+        }
+        int remainingSize = SIZE;
+        int currSize;
+        int *pos;
+        char *tuples;
+        int * integerPointer = outputBuffer;
+
+        printf("\n ===Final Array====\n");
+        while (remainingSize > 0) {
+            currSize = *(int*) outputBuffer;
+            printf("CurrSize:%d\n", currSize);
+            pos = outputBuffer + sizeof (UINT32);
+            tuples = (char*) pos + currSize * sizeof (int);
+
+
+            for (i = 0; i < currSize; i++) {
+                printf("Elem: %d\n", *(int*) (tuples + (arrayElemSize * pos[i])));
+            }
+            /*One extra UINT32 size jump to jump the size parameter itself*/
+            outputBuffer += currSize * (arrayElemSize + sizeof (UINT32)) + sizeof (UINT32);
+            remainingSize -= currSize;
+        }
+
+        return 0;
+    }
+#if 0
+    typedef struct sortElemNoUndo {
+        UINT32 value;
+    } sortElemNoUndo;
+#endif
+
+
+
+
+
