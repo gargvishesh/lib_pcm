@@ -191,18 +191,12 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
     arrayElemCount = arrElemCount;
     outputBufferPtr = outputBuffer;
     InitSort(&partitionBeginnings, &currPartitionPtr, arrElemSize, compareTup);
-    for (i = 0; i < numPivots; i++) {
-        printf("Pivots:%d\n", *(int*) (pivots + (sizeof (int)*i)));
-    }
-
+    
     UINT8 partitionId;
     int * count = (int*) malloc(numSplits * sizeof (int));
     for (i = 0; i < arrayElemCount; i++) {
         partitionId = getPartitionId(a + arrayElemSize * i);
         count[partitionId]++;
-    }
-    for (i = 0; i < numSplits; i++) {
-        printf("Count:%d\n", count[i]);
     }
     /*Coalesce empty partitions / partitions less than threshold.
       Each split i corresponds to pivot (i-1) and pivot (i) except. 
@@ -343,14 +337,14 @@ void sortPartition(int start, int end) {
 int main() {
 
     /* For debugging            */
-    int ARRAY[] = {8, 3, 4, 5, 2, 6, 7, 2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
+    long long ARRAY[] = {8, 3, 4, 5, 2, 6, 7, 2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
     //int ARRAY[] = {2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
     a = (char*) ARRAY;
 
     int SIZE = 18;
     int i;
     char *outputBuffer = (char*) malloc(sizeof (int)*1000);
-    createPartitions(0, 18, sizeof (int), compareRecords, outputBuffer);
+    createPartitions(0, 18, sizeof (long long), compareRecords, outputBuffer);
 
 #ifdef UNDO
     UINT32 numElem = 20;
@@ -376,7 +370,7 @@ int main() {
 
 
         for (i = 0; i < currSize; i++) {
-            printf("Elem: %d\n", *(int*) (tuples + (arrayElemSize * pos[i])));
+            printf("Elem: %d\n", *(long long*) (tuples + (arrayElemSize * pos[i])));
         }
         /*One extra UINT32 size jump to jump the size parameter itself*/
         outputBuffer += currSize * (arrayElemSize + sizeof (UINT32)) + sizeof (UINT32);
