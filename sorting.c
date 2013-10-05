@@ -70,7 +70,6 @@ void swapTuples(char* ptr1, char* ptr2) {
     memcpy(temp, ptr1, arrayElemSize);
     memcpy(ptr1, ptr2, arrayElemSize);
     memcpy(ptr2, temp, arrayElemSize);
-    //printf("Putting %d in place of %d\n", *(int*) ptr2, *(int*) ptr1);
     free(temp);
 }
 
@@ -100,7 +99,7 @@ void sortPivots() {
     }
 }
 
-int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTuples compareTup) {
+int InitSort(int arrElemCount, int stepSize, compareTuples compareTup, char* outputBuffer) {
 
     //numSplits = PCM_SIZE/2*DRAM_SIZE; 
     numSplits = 5;
@@ -111,9 +110,15 @@ int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTup
     arrayElemSize = stepSize;
     UINT32 count;
     Compare = compareTup;
+    outputBufferPtr = outputBuffer;
+    arrayElemCount = arrElemCount;
+    
     srand(13);
     /*Pivots will be 1 less than #splits*/
     pivots = (char*) malloc((numSplits - 1) * arrayElemSize);
+    UINT32 numElem = 20;
+    pos = (POS_ARRAY_TYPE*) malloc(numElem * sizeof (POS_ARRAY_TYPE));
+    initSortElems(numElem);
     UINT8 index;
     for (index = 0; index < numPivots; index++) {
         memcpy(pivots + (index * arrayElemSize),
@@ -135,9 +140,16 @@ int InitSort(UINT32** start, UINT32** currPartitionPtr, int stepSize, compareTup
     }
     numPivots = count;
     numSplits = numPivots + 1;
-    *start = (UINT32*) malloc((numSplits + 1) * sizeof (int));
-    *currPartitionPtr = (UINT32*) malloc((numSplits + 1) * sizeof (int));
+    partitionBeginnings = (UINT32*) malloc((numSplits + 1) * sizeof (int));
+    
+    
+    
     return 0;
+}
+void cleanupSort(){
+    free(pivots);
+    free(partitionBeginnings);
+    free(pos);
 }
 
 UINT32 getPartitionId(char *tuplePtr) {
@@ -179,18 +191,14 @@ UINT32 getPartitionId(char *tuplePtr) {
 
 }
 
-int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples compareTup, char* outputBuffer) {
+int createPartitions() {
 
     UINT32 i, j, k;
     UINT32 partitionPresent = INT_MAX, partitionLast;
     UINT32 partitionStart, partitionEnd, firstVictimLoc;
     BOOL flag;
-    char *presentVictim = (char*) malloc(arrElemSize);
-    UINT32 *currPartitionPtr;
-    //arrayInit(); 
-    arrayElemCount = arrElemCount;
-    outputBufferPtr = outputBuffer;
-    InitSort(&partitionBeginnings, &currPartitionPtr, arrElemSize, compareTup);
+    char *presentVictim = (char*) malloc(arrayElemSize);
+    UINT32 *currPartitionPtr = (UINT32*) malloc((numSplits + 1) * sizeof (int));;
     
     UINT8 partitionId;
     int * count = (int*) malloc(numSplits * sizeof (int));
@@ -248,7 +256,7 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
                 continue;
             }
             firstVictimLoc = j;
-            memcpy(presentVictim, a + arrayElemSize*j, arrElemSize);
+            memcpy(presentVictim, a + arrayElemSize*j, arrayElemSize);
             flag = 1;
             while (flag) {
                 partitionStart = currPartitionPtr[partitionPresent];
@@ -271,6 +279,8 @@ int createPartitions(int start, int arrElemCount, int arrElemSize, compareTuples
     }
 
     free(presentVictim);
+    free(currPartitionPtr);
+    free(count);
 
     return (EXIT_SUCCESS);
 }
@@ -332,6 +342,7 @@ void sortPartition(int start, int end) {
         outputBufferPtr += arrayElemSize;
         pos[i] = i;
     }
+    free(presentArrayCandidate);
 }
 
 int main() {
@@ -341,23 +352,21 @@ int main() {
     //int ARRAY[] = {2, 3, 13, 15, 3, 4, 3, 4, 19, 5, 7};
     a = (char*) ARRAY;
 
-    int SIZE = 18;
+    int COUNT = 18;
     int i;
     char *outputBuffer = (char*) malloc(sizeof (int)*1000);
-    createPartitions(0, 18, sizeof (long long), compareRecords, outputBuffer);
-
-#ifdef UNDO
-    UINT32 numElem = 20;
-    pos = (POS_ARRAY_TYPE*) malloc(numElem * sizeof (POS_ARRAY_TYPE));
-    initSortElems(numElem);
-#endif
+    
+    
+    InitSort(COUNT, sizeof (long long), compareRecords, outputBuffer);
+    createPartitions();
     for (i = 0; i < numSplits; i++) {
         /*Used as partition start ptr for quicksort. Replace with something cleaner later*/
-
         partitionStart = a + (arrayElemSize * partitionBeginnings[i]);
         sortPartition(partitionBeginnings[i], partitionBeginnings[i + 1]);
     }
-    int remainingSize = SIZE;
+    
+    
+    int remainingSize = COUNT;
     int currSize;
     int *pos;
     char *tuples;
@@ -367,8 +376,6 @@ int main() {
         currSize = *(int*) outputBuffer;
         pos = outputBuffer + sizeof (UINT32);
         tuples = (char*) pos + currSize * sizeof (int);
-
-
         for (i = 0; i < currSize; i++) {
             printf("Elem: %d\n", *(long long*) (tuples + (arrayElemSize * pos[i])));
         }
@@ -376,7 +383,7 @@ int main() {
         outputBuffer += currSize * (arrayElemSize + sizeof (UINT32)) + sizeof (UINT32);
         remainingSize -= currSize;
     }
-
+    cleanupSort();
     return 0;
 }
 
