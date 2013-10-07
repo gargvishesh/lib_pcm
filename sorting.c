@@ -232,7 +232,8 @@ int createPartitions() {
     UINT32 *currPartitionPtr = (UINT32*) MALLOC((numSplits + 1) * sizeof (int));;
     
     UINT8 partitionId;
-    int * count = (int*) MALLOC(numSplits * sizeof (int));
+    /*Changing count too to vmalloc causing some problems. Have to check it later*/
+    int * count = (int*) malloc(numSplits * sizeof (int));
     for (i = 0; i < arrayElemCount; i++) {
         partitionId = getPartitionId(array + arrayElemSize * i);
         count[partitionId]++;
@@ -311,7 +312,7 @@ int createPartitions() {
 
     FREE(presentVictim);
     FREE(currPartitionPtr);
-    FREE(count);
+    free(count);
 
     return (EXIT_SUCCESS);
 }
@@ -329,7 +330,7 @@ void sortPartitionWithUndo(int start, int end) {
     qsortWithUndo(array + (start * arrayElemSize), end - start, arrayElemSize, Compare);
 
     POS_ARRAY_TYPE presentTargetLoc, nextTargetLoc;
-    char *presentArrayCandidate = (char*) MALLOC(arrayElemSize);
+    char *presentArrayCandidate = (char*) malloc(arrayElemSize);
     char flag;
     UINT32 firstVictimLoc;
     for (i = 0; i < end - start; i++) {
@@ -373,7 +374,7 @@ void sortPartitionWithUndo(int start, int end) {
         outputBufferPtr += arrayElemSize;
         pos[i] = i;
     }
-    FREE(presentArrayCandidate);
+    free(presentArrayCandidate);
 }
 #ifdef VMALLOC
 int sortMultiPivotAndUndo(Vmalloc_t *PCMStructPtr, char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSize, 
