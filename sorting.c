@@ -63,7 +63,7 @@ UINT32 arrayElemCount;
 char *array;
 UINT32 numSplits;
 UINT32 numPivots;
-UINT8 arrayElemSize;
+UINT32 arrayElemSize;
 int writes;
 UINT32 *partitionBeginnings = NULL;
 char* outputBufferPtr = NULL;
@@ -142,7 +142,7 @@ int InitSort(char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuple
      * numSplits
      * length of pos array
      * ********************************************************************************/
-    numSplits = 20;
+    numSplits = 1000;
     numPivots = numSplits - 1;
     pivots = (char*) MALLOC((numSplits - 1) * arrayElemSize);
     UINT32 numElem = 10000;
@@ -150,7 +150,7 @@ int InitSort(char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuple
     
     pos = (POS_ARRAY_TYPE*) MALLOC(numElem * sizeof (POS_ARRAY_TYPE));
     initSortElems(numElem);
-    UINT8 index;
+    UINT32 index;
     for (index = 0; index < numPivots; index++) {
         memcpy(pivots + (index * arrayElemSize),
                 array + (arrayElemSize * (rand() % arrayElemCount)),
@@ -231,9 +231,10 @@ int createPartitions() {
     char *presentVictim = (char*) MALLOC(arrayElemSize);
     UINT32 *currPartitionPtr = (UINT32*) MALLOC((numSplits + 1) * sizeof (int));;
     
-    UINT8 partitionId;
-    /*Changing count too to vmalloc causing some problems. Have to check it later*/
-    int * count = (int*) malloc(numSplits * sizeof (int));
+    UINT32 partitionId;
+    int * count = (int*) MALLOC(numSplits * sizeof (int));
+    memset(count, 0, numSplits * sizeof (int));
+    
     for (i = 0; i < arrayElemCount; i++) {
         partitionId = getPartitionId(array + arrayElemSize * i);
         count[partitionId]++;
@@ -244,10 +245,10 @@ int createPartitions() {
      * Hence, when we coalesce array split i with i+1, pivot i
      * should be removed. Note: We do this run 1 less times than numSplits 
      * as last split's count is immaterial __|__|__|__|__ */
-
     UINT32 runningCount = 0,
             windowCount;
-    UINT8 newNumPivots = 0, newNumSplits = 1;
+    UINT32 newNumPivots = 0, newNumSplits = 1;
+    partitionBeginnings[0] = 0;
     UINT8 THRESHHOLD = 1;
     for (i = 0; i < numSplits - 1; i++) {
         runningCount += count[i];
@@ -270,6 +271,8 @@ int createPartitions() {
     }
     numPivots = newNumPivots;
     numSplits = newNumSplits;
+    
+    
 #if 0 /*Can be used for debuggin later if required*/
     for (i = 0; i < numPivots; i++) {
         printf("Pivots:%d\n", *(int*) (pivots + (sizeof (int)*i)));
@@ -312,7 +315,7 @@ int createPartitions() {
 
     FREE(presentVictim);
     FREE(currPartitionPtr);
-    free(count);
+    FREE(count);
 
     return (EXIT_SUCCESS);
 }
