@@ -68,7 +68,7 @@ UINT32 tempPos;
    This particular magic number was chosen to work best on a Sun 4/260. */
 //#define MAX_THRESH 4
 /*So that everybody goes through SWAP macro for POS to be */
-#define MAX_THRESH 0
+#define MAX_THRESH 1
 
 /* Stack node declarations used to store unfulfilled partition obligations. */
 typedef struct
