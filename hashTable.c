@@ -19,7 +19,6 @@
 
 hashTbl *sHT;
 sOverflowPartition *pOvflow;
-pageHash* (*getFreePage)();
 SINT32 pageCount;
 UINT32 lastVictim;
 extern UINT32 finalCount;
@@ -43,7 +42,7 @@ extern UINT32 numPasses;
 
 /*Initialize a new page for Hash Table*/
 void initNewPage(pageHash *pNewPage) {
-    memset(pNewPage->valid, 0, sizeof (pNewPage->valid));
+    memset(pNewPage->valid, 0, sHT->entriesPerPage/BITS_PER_BYTE);
 }
 #if 0
 #if 1
@@ -133,11 +132,15 @@ pageHash* getFreePageByEviction() {
 #endif
 //Get Free Page from Free List
 
-pageHash* getFreePageFromFreeList() {
+pageHash* getFreePage() {
     pageHash *pNewPage;
     if (sHT->pFreeList) {
-        pNewPage = sHT->pFreeList;
-        sHT->pFreeList = sHT->pFreeList->pNextPage;
+        pNewPage = (pageHash*) MALLOC(sizeof (pageHash));
+        assert(pNewPage != NULL);
+        pNewPage->valid = (BITMAP*)MALLOC(sHT->entriesPerPage/BITS_PER_BYTE);
+        assert(pNewPage->valid != NULL);
+        pNewPage->entries = (hashEntry*)MALLOC(sizeof(hashEntry)* sHT->entriesPerPage);
+        assert(pNewPage->entries != NULL);
         initNewPage(pNewPage);
         return pNewPage;
     }
@@ -146,15 +149,12 @@ pageHash* getFreePageFromFreeList() {
 
 //Initialize Hash Table Structure and Free List
 #ifdef VMALLOC
-
-int initHT(Vmalloc_t *PCMStructPtr, UINT32 HTBucketCount) {
+int initHT(Vmalloc_t *PCMStructPtr, UINT32 HTBucketCount, UINT8 entriesPerPage) {
 #else
-
-int initHT(UINT32 HTBucketCount) {
+int initHT(UINT32 HTBucketCount, UINT8 entriesPerPage) {
 #endif
     //Init Main HT structure
-    UINT32 pageNo;
-    pageHash *pNewPage, *pCurrPage;
+    
 #ifdef VMALLOC
     vmPCM = PCMStructPtr;
 #endif
@@ -164,16 +164,16 @@ int initHT(UINT32 HTBucketCount) {
 
 
     sHT->pBucket = (sBucket*) MALLOC(HTBucketCount * sizeof (sBucket));
-
     assert(sHT->pBucket != NULL);
+    
     memset(sHT->pBucket, 0, HTBucketCount * sizeof (sBucket));
     sHT->HTBucketCount = HTBucketCount;
+    sHT->entriesPerPage = entriesPerPage;
     /*Initalize function pointer getFreePage to point to
      * getFreePageFromFreeList. Later FREE list permanently empty, so then change
      * pointer to getFreePageByEviction*/
-    getFreePage = getFreePageFromFreeList;
 #if 1
-    pageCount = (HT_MEMORY_SIZE / (sizeof (pageHash)));
+    //pageCount = (HT_MEMORY_SIZE / (sizeof (pageHash)));
     
 #else
     //Leave space for twice the number of DB records + hash table structures
@@ -182,17 +182,17 @@ int initHT(UINT32 HTBucketCount) {
             (BUCKET_COUNT * sizeof (sBucket)) / sizeof (page));
 
 #endif
-    printf("pageCount %d\n", pageCount);
-    assert(pageCount > 0);
+    //printf("pageCount %d\n", pageCount);
+    //assert(pageCount > 0);
 
     //Init Free List
-
+#if 0
     for (pageNo = 0; pageNo < pageCount; pageNo++) {
 
         pNewPage = (pageHash*) MALLOC(sizeof (pageHash));
         //printf("PageNo:%d\n", pageNo);
         assert(pNewPage != NULL);
-#if 0
+
         if (pNewPage == NULL) {
             int deletePage;
 
@@ -205,7 +205,6 @@ int initHT(UINT32 HTBucketCount) {
             break;
 
         }
-#endif
         initNewPage(pNewPage);
         if (pageNo == 0) {
             sHT->pFreeList = pNewPage;
@@ -214,6 +213,7 @@ int initHT(UINT32 HTBucketCount) {
         }
         pCurrPage = pNewPage;
     }
+#endif
     return 0;
 }
 
@@ -270,18 +270,18 @@ void insertHashEntry(void* tuple, char* attr, UINT32 attrSize) {
         /*Write Code to Insert a Record here. Remember to set valid flag*/
         /*Since an entirely new page, set the LSB indicating first record*/
         SET_VALID(pNewPage->valid, 0);
-        pNewPage->entry[0].ptr = tuple;
-        pNewPage->entry[0].hash = hashValue;
+        pNewPage->entries[0].ptr = tuple;
+        pNewPage->entries[0].hash = hashValue;
         //printf("Inserted [Bucket:%d HashVal%d]\n", bucketId, hashValue);
         return;
     } else {
         pCurrPage = sHT->pBucket[bucketId].firstPage;
         while (pCurrPage) {
-            for (index = 0; index < ENTRIES_PER_PAGE; index++) {
+            for (index = 0; index < sHT->entriesPerPage; index++) {
                 if (CHECK_VALID(pCurrPage->valid, index) == 0) {
                     SET_VALID(pCurrPage->valid, index);
-                    pCurrPage->entry[index].ptr = tuple;
-                    pCurrPage->entry[index].hash = hashValue;
+                    pCurrPage->entries[index].ptr = tuple;
+                    pCurrPage->entries[index].hash = hashValue;
                     //printf("Inserted [Bucket:%d HashVal%d]\n", bucketId, hashValue);
                     return;
                 }
@@ -296,8 +296,8 @@ void insertHashEntry(void* tuple, char* attr, UINT32 attrSize) {
         pNewPage->pNextPage = sHT->pBucket[bucketId].firstPage;
         sHT->pBucket[bucketId].firstPage = pNewPage;
         SET_VALID(pNewPage->valid, 0);
-        pNewPage->entry[0].ptr = tuple;
-        pNewPage->entry[0].hash = hashValue;
+        pNewPage->entries[0].ptr = tuple;
+        pNewPage->entries[0].hash = hashValue;
     }
 
 }
@@ -329,8 +329,8 @@ UINT8 searchHashEntry(char* attr, UINT32 attrSize, void** returnEntryPtr,
 
 
     while (pCurrPage) {
-        pCurrEntry = pCurrPage->entry;
-        for (; index < ENTRIES_PER_PAGE; index++) {
+        pCurrEntry = pCurrPage->entries;
+        for (; index < sHT->entriesPerPage; index++) {
             if (CHECK_VALID(pCurrPage->valid, index) && pCurrEntry[index].hash == hashValue) {
                 //printf("Found at Bucket ID : %d\n", bucketID);
                 *returnEntryPtr = (void*) (pCurrEntry[index].ptr);
