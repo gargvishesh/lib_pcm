@@ -13,6 +13,7 @@
 #include "constants.h"
 #include "GeneralHashFunctions.h"
 
+
 #ifdef VMALLOC
 #include <vmalloc.h>
 #endif
@@ -344,6 +345,29 @@ UINT8 searchHashEntry(char* attr, UINT32 attrSize, void** returnEntryPtr,
     }
     //printf("Search Value :%d Not found in HT\n", *(int*)attr);
     return 0;
+}
+
+void freeHashTable() {
+
+    pageHash *pCurrPage, *pNextPage;
+    int bucketID;
+
+    //Free HT
+    for (bucketID = 0; bucketID < sHT->HTBucketCount; bucketID++) {
+        pCurrPage = sHT->pBucket[bucketID].firstPage;
+
+        while (pCurrPage) {
+            pNextPage = pCurrPage->pNextPage;
+
+            FREE(pCurrPage->valid);
+            FREE(pCurrPage->entries);
+            FREE(pCurrPage);
+            pCurrPage = pNextPage;
+
+        }
+    }
+    FREE(sHT->pBucket);
+    FREE(sHT);
 }
 #if 0
 //Update Aggregate Value of Record found in HT
