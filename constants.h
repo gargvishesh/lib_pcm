@@ -9,14 +9,17 @@
 #define CONSTANTS_H_
 
 #define UINT8 unsigned char
+#define SINT8 signed char
 #define UINT16 unsigned short int
 #define UINT32 unsigned int
 #define SINT32 signed int
+#define BOOL UINT8
 
-
-#define KB (1024)
+#define KB 1024
 #define MB (1024 * KB)
 #define GB (1024 * MB)
+
+#define POS_ARRAY_TYPE UINT32
 
 
 #define NUM_PASSES 1
@@ -34,13 +37,12 @@
 
 
 
-#define ENTRIES_PER_PAGE 64
 #define BITS_PER_BYTE 8
 #define BITMAP char
 
 /******NOTE: Change HASH_SHIFT acc to HASH_MASK**********/
-#define HASH_MASK 0x0000FF00
-#define HASH_SHIFT 8
+#define HASH_MASK 0x0003FC00
+#define HASH_SHIFT 10
 /********************************************************/
 
 #define TYPE_NUM 0
