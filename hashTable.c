@@ -40,6 +40,7 @@ extern void *regionDRAM;
 extern void *regionPCM;
 extern UINT32 recordSize;
 extern UINT32 numPasses;
+int pageCount=0;
 
 /*Initialize a new page for Hash Table*/
 void initNewPage(pageHash *pNewPage) {
@@ -135,17 +136,17 @@ pageHash* getFreePageByEviction() {
 
 pageHash* getFreePage() {
     pageHash *pNewPage;
-    if (sHT->pFreeList) {
-        pNewPage = (pageHash*) MALLOC(sizeof (pageHash));
-        assert(pNewPage != NULL);
-        pNewPage->valid = (BITMAP*)MALLOC(sHT->entriesPerPage/BITS_PER_BYTE);
-        assert(pNewPage->valid != NULL);
-        pNewPage->entries = (hashEntry*)MALLOC(sizeof(hashEntry)* sHT->entriesPerPage);
-        assert(pNewPage->entries != NULL);
-        initNewPage(pNewPage);
-        return pNewPage;
-    }
-    return NULL;
+    pNewPage = (pageHash*) MALLOC(sizeof (pageHash));
+    assert(pNewPage != NULL);
+    pageCount++;
+    printf("pageCount: %d\n", pageCount);
+    pNewPage->valid = (BITMAP*) MALLOC(sHT->entriesPerPage / BITS_PER_BYTE);
+    assert(pNewPage->valid != NULL);
+    pNewPage->entries = (hashEntry*) MALLOC(sizeof (hashEntry) * sHT->entriesPerPage);
+    assert(pNewPage->entries != NULL);
+    initNewPage(pNewPage);
+    return pNewPage;
+
 }
 
 //Initialize Hash Table Structure and Free List
