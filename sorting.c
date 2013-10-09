@@ -67,6 +67,7 @@ UINT32 arrayElemSize;
 int writes;
 UINT32 *partitionBeginnings = NULL;
 char* outputBufferPtr = NULL;
+UINT32 maxPartitionSize;
 
 #ifdef UNDO
 POS_ARRAY_TYPE *pos;
@@ -113,9 +114,9 @@ void sortPivots() {
     }
 }
 #ifdef VMALLOC
-int InitSort(Vmalloc_t *PCMStructPtr, char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuples compareTup, char* outputBuffer) {
+int InitSort(Vmalloc_t *PCMStructPtr, char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuples compareTup, char* outputBuffer, UINT32 numPartitions) {
 #else
-int InitSort(char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuples compareTup, char* outputBuffer) {
+int InitSort(char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuples compareTup, char* outputBuffer, UINT32 numPartition) {
 #endif   
     //numSplits = PCM_SIZE/2*DRAM_SIZE; 
     
@@ -133,7 +134,7 @@ int InitSort(char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuple
     assert(PCMStructPtr != NULL);
     vmPCM = PCMStructPtr;
 #endif
-    srand(13);
+    srand(220587);
     /*Pivots will be 1 less than #splits*/
     /**********************************************************************************
      * ********************************************************************************
@@ -142,14 +143,14 @@ int InitSort(char* arrayToBeSorted, int arrElemCount, int stepSize, compareTuple
      * numSplits
      * length of pos array
      * ********************************************************************************/
-    numSplits = 1000;
+    //numSplits = 1000;
+    numSplits = numPartitions;
     numPivots = numSplits - 1;
     pivots = (char*) MALLOC((numSplits - 1) * arrayElemSize);
-    UINT32 numElem = 10000;
+    //UINT32 numElem = 10000;
+    
      /***********************************************************************************/
     
-    pos = (POS_ARRAY_TYPE*) MALLOC(numElem * sizeof (POS_ARRAY_TYPE));
-    initSortElems(numElem);
     UINT32 index;
     for (index = 0; index < numPivots; index++) {
         memcpy(pivots + (index * arrayElemSize),
@@ -222,7 +223,7 @@ UINT32 getPartitionId(char *tuplePtr) {
 
 }
 
-int createPartitions() {
+int createPartitions(int maxThreshhold) {
 
     UINT32 i, j, k;
     UINT32 partitionPresent = INT_MAX, partitionLast;
@@ -249,11 +250,10 @@ int createPartitions() {
             windowCount;
     UINT32 newNumPivots = 0, newNumSplits = 1;
     partitionBeginnings[0] = 0;
-    UINT8 THRESHHOLD = 1;
     for (i = 0; i < numSplits - 1; i++) {
         runningCount += count[i];
         windowCount = count[i];
-        while ((i < (numSplits - 1)) && (windowCount < THRESHHOLD)) {
+        while ((i < (numSplits - 1)) && (windowCount < maxThreshhold)) {
             i++;
             runningCount += count[i];
             windowCount += count[i];
@@ -269,18 +269,25 @@ int createPartitions() {
 
 
     }
+    partitionBeginnings[newNumSplits] = arrayElemCount;
     numPivots = newNumPivots;
     numSplits = newNumSplits;
-    
+    printf("Partition Counting Over\n");
     
 #if 0 /*Can be used for debuggin later if required*/
     for (i = 0; i < numPivots; i++) {
         printf("Pivots:%d\n", *(int*) (pivots + (sizeof (int)*i)));
     }
+#endif
+    maxPartitionSize=0;
     for (i = 0; i < numSplits; i++) {
+        if(partitionBeginnings[i+1] - partitionBeginnings[i] > maxPartitionSize){
+            maxPartitionSize = partitionBeginnings[i+1] - partitionBeginnings[i];
+        }
         printf("partitions[%d]:%d\n", i, partitionBeginnings[i]);
     }
-#endif
+    printf("maxPartitionSize is %d\n", maxPartitionSize);
+
     partitionBeginnings[numSplits] = arrayElemCount;
     memcpy(currPartitionPtr, partitionBeginnings, (numSplits + 1) * sizeof (int));
     for (i = 0; i < numSplits; i++) {
@@ -312,7 +319,8 @@ int createPartitions() {
             }
         }
     }
-
+    printf("Partitioning Over\n");
+    
     FREE(presentVictim);
     FREE(currPartitionPtr);
     FREE(count);
@@ -367,32 +375,28 @@ void sortPartitionWithUndo(int start, int end) {
     outputBufferPtr += sizeof (UINT32);
     for (i = 0; i < end - start; i++) {
         *(POS_ARRAY_TYPE*) outputBufferPtr = (pos[i] & (~resolved));
+        assert((*(POS_ARRAY_TYPE*) outputBufferPtr) < (end-start));
         outputBufferPtr += sizeof (POS_ARRAY_TYPE);
+        pos[i] = i;
+        
     }
 
-    for (i = 0; i < end - start; i++) {
-        memcpy(outputBufferPtr,
-                array + ((start + i) * arrayElemSize),
-                arrayElemSize);
-        outputBufferPtr += arrayElemSize;
-        pos[i] = i;
-    }
     free(presentArrayCandidate);
 }
 #ifdef VMALLOC
 int sortMultiPivotAndUndo(Vmalloc_t *PCMStructPtr, char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSize, 
-        compareTuples compareFunc, char* outputBuffer){
+        compareTuples compareFunc, char* outputBuffer, UINT32 numPartitions, UINT32 maxThreshhold){
 #else
 int sortMultiPivotAndUndo(char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSize, 
-        compareTuples compareFunc, char* outputBuffer){
+        compareTuples compareFunc, char* outputBuffer, UINT32 numPartitions, UINT32 maxThreshhold){
 #endif
 
 #ifdef VMALLOC
-    InitSort(PCMStructPtr, arrayToBeSorted, elemCount, elemSize, compareFunc, outputBuffer);
+    InitSort(PCMStructPtr, arrayToBeSorted, elemCount, elemSize, compareFunc, outputBuffer, numPartitions);
 #else
-    InitSort(arrayToBeSorted, elemCount, elemSize, compareFunc, outputBuffer);
+    InitSort(arrayToBeSorted, elemCount, elemSize, compareFunc, outputBuffer, numPartitions);
 #endif
-    createPartitions();
+    createPartitions(maxThreshhold);
 #if 0
     /******Debug******************/
     int j, k;
@@ -405,10 +409,14 @@ int sortMultiPivotAndUndo(char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSi
     /***************************/
 #endif
     UINT32 i;
+    pos = (POS_ARRAY_TYPE*) MALLOC(maxPartitionSize * sizeof (POS_ARRAY_TYPE));
+    initSortElems(maxPartitionSize);
     for (i = 0; i < numSplits; i++) {
         /*Used as partition start ptr for quicksort. Replace with something cleaner later*/
         partitionStart = array + (arrayElemSize * partitionBeginnings[i]);
         sortPartitionWithUndo(partitionBeginnings[i], partitionBeginnings[i + 1]);
+        printf("Sorting over for Partition :%d\n", i);
+    
     }
     cleanupSort();
     return 0;
