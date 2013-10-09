@@ -139,7 +139,7 @@ pageHash* getFreePage() {
     pNewPage = (pageHash*) MALLOC(sizeof (pageHash));
     assert(pNewPage != NULL);
     pageCount++;
-    printf("pageCount: %d\n", pageCount);
+    //printf("pageCount: %d\n", pageCount);
     pNewPage->valid = (BITMAP*) MALLOC(sHT->entriesPerPage / BITS_PER_BYTE);
     assert(pNewPage->valid != NULL);
     pNewPage->entries = (hashEntry*) MALLOC(sizeof (hashEntry) * sHT->entriesPerPage);
