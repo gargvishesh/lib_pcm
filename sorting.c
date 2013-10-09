@@ -46,12 +46,8 @@
 #endif
 
 #ifdef VMALLOC
-Vmalloc_t *vmDRAM;
 Vmalloc_t *vmPCM;
 #endif
-
-int resolved = 1 << (BYTE * sizeof (int) - 1);
-
 
 compareTuples Compare;
 char *pivots;
@@ -68,6 +64,7 @@ int writes;
 UINT32 *partitionBeginnings = NULL;
 char* outputBufferPtr = NULL;
 UINT32 maxPartitionSize;
+UINT32 gCurrStart;
 
 #ifdef UNDO
 POS_ARRAY_TYPE *pos;
@@ -332,56 +329,29 @@ int compareRecords(const void *p1, const void *p2) {
     //printf("Comparing %d %d\n", *(int*) p1, *(int*) p2);
     return (*(int*) p1 - *(int*) p2);
 }
-extern void _quicksort(void *const pbase, size_t total_elems, size_t size,
-        __compar_fn_t cmp);
 
-void sortPartitionWithUndo(int start, int end) {
+int comparePos(const void *p1, const void *p2){
+    char *presentArrayStart = array + (gCurrStart * arrayElemSize);
+    POS_ARRAY_TYPE pos1 = *(POS_ARRAY_TYPE*)p1;
+    POS_ARRAY_TYPE pos2 = *(POS_ARRAY_TYPE*)p2;
+    
+    return ( Compare(presentArrayStart+(arrayElemSize*pos1), presentArrayStart+(arrayElemSize*pos2)) );   
+}
+
+void sortPartition(int start, int end){
+    gCurrStart = start;
     int i;
-
-    qsortWithUndo(array + (start * arrayElemSize), end - start, arrayElemSize, Compare);
-
-    POS_ARRAY_TYPE presentTargetLoc, nextTargetLoc;
-    char *presentArrayCandidate = (char*) malloc(arrayElemSize);
-    char flag;
-    UINT32 firstVictimLoc;
-    for (i = 0; i < end - start; i++) {
-        if (!!(pos[i] & resolved) == MSB_ONE) //!! to convert to boolean
-            continue;
-        if (pos[i] == i) {
-            pos[i] |= (1 << (BYTE * sizeof (int) - 1)) | i;
-            continue;
-        }
-        firstVictimLoc = i;
-        presentTargetLoc = pos[i];
-        memcpy(presentArrayCandidate, array + (arrayElemSize * (start + i)), arrayElemSize);
-        flag = 1;
-        pos[i] |= resolved;
-        while (flag) {
-            if (presentTargetLoc == firstVictimLoc) {
-                flag = 0;
-            }
-            assert(presentTargetLoc < end - start);
-
-            swapTuples(array + ((start + presentTargetLoc) * arrayElemSize),
-                    presentArrayCandidate);
-
-            nextTargetLoc = pos[presentTargetLoc];
-            pos[presentTargetLoc] |= resolved;
-            presentTargetLoc = nextTargetLoc;
-        }
-    }
-
+    
+    qsort(pos, end - start, sizeof(POS_ARRAY_TYPE), comparePos);
+    
     *(UINT32*) outputBufferPtr = end - start;
     outputBufferPtr += sizeof (UINT32);
     for (i = 0; i < end - start; i++) {
-        *(POS_ARRAY_TYPE*) outputBufferPtr = (pos[i] & (~resolved));
-        assert((*(POS_ARRAY_TYPE*) outputBufferPtr) < (end-start));
-        outputBufferPtr += sizeof (POS_ARRAY_TYPE);
+        *(POS_ARRAY_TYPE*) outputBufferPtr = (pos[i]);
+        assert(pos[i] < (end-start));
         pos[i] = i;
-        
+        outputBufferPtr += sizeof (POS_ARRAY_TYPE);
     }
-
-    free(presentArrayCandidate);
 }
 #ifdef VMALLOC
 int sortMultiPivotAndUndo(Vmalloc_t *PCMStructPtr, char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSize, 
@@ -414,7 +384,7 @@ int sortMultiPivotAndUndo(char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSi
     for (i = 0; i < numSplits; i++) {
         /*Used as partition start ptr for quicksort. Replace with something cleaner later*/
         partitionStart = array + (arrayElemSize * partitionBeginnings[i]);
-        sortPartitionWithUndo(partitionBeginnings[i], partitionBeginnings[i + 1]);
+        sortPartition(partitionBeginnings[i], partitionBeginnings[i + 1]);
         printf("Sorting over for Partition :%d\n", i);
     
     }
