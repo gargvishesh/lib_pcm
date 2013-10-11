@@ -185,6 +185,9 @@ UINT32 getPartitionId(char *tuplePtr) {
     //long long num = (value*612);
     UINT32 beg = 0, end = numPivots - 1, mid;
     SINT32 comparisonResult;
+    if (numPivots == 0){
+        return 0;
+    }
     /*Do array binary search here*/
     while (beg <= end) {
         mid = (beg + end) / 2;
@@ -269,7 +272,7 @@ int createPartitions(int maxThreshhold) {
     partitionBeginnings[newNumSplits] = arrayElemCount;
     numPivots = newNumPivots;
     numSplits = newNumSplits;
-    printf("Partition Counting Over\n");
+    printf("Partition Counting Over [Partitions:%d]\n", numSplits);
     
 #if 0 /*Can be used for debuggin later if required*/
     for (i = 0; i < numPivots; i++) {
