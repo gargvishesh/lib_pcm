@@ -505,10 +505,6 @@ int sortMultiPivotAndUndo(char* arrayToBeSorted, UINT32 elemCount, UINT32 elemSi
     UINT32 i;
     //pos = (POS_ARRAY_TYPE*) MALLOC(maxPartitionSize * sizeof (POS_ARRAY_TYPE));
     //initSortElems(maxPartitionSize);
-    for(i=0; i<arrayElemCount; i++){
-        printf("pos[%d]: %d\n", i, pos[i]);
-    }
-    
     for (i = 0; i < numSplits; i++) {
         /*Used as partition start ptr for quicksort. Replace with something cleaner later*/
         partitionStart = array + (arrayElemSize * partitionBeginnings[i]);
