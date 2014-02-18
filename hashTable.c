@@ -265,6 +265,7 @@ void insertHashEntry(void* tuple, char* attr, UINT32 attrSize) {
         pageHash * pNewPage = getFreePage();
         if (pNewPage == NULL) {
             printf("FATAL ERROR: No FREE pages in HT\n");
+            assert(pNewPage != NULL);
             return;
         }
         pNewPage->pNextPage = sHT->pBucket[bucketId].firstPage;
@@ -278,7 +279,9 @@ void insertHashEntry(void* tuple, char* attr, UINT32 attrSize) {
         return;
     } else {
         pCurrPage = sHT->pBucket[bucketId].firstPage;
-        while (pCurrPage) {
+        /*Vishesh: No need to loop through to other pages 
+         * since we are not deleting any entries at any point in time*/
+        //while (pCurrPage) {
             for (index = 0; index < sHT->entriesPerPage; index++) {
                 if (CHECK_VALID(pCurrPage->valid, index) == 0) {
                     SET_VALID(pCurrPage->valid, index);
@@ -288,8 +291,8 @@ void insertHashEntry(void* tuple, char* attr, UINT32 attrSize) {
                     return;
                 }
             }
-            pCurrPage = pCurrPage->pNextPage;
-        }
+          //  pCurrPage = pCurrPage->pNextPage;
+        //}
         pageHash * pNewPage = getFreePage();
         if (pNewPage == NULL) {
             printf("FATAL ERROR: No FREE pages in HT\n");
