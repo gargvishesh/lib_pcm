@@ -140,7 +140,12 @@ pageHash* getFreePage() {
     assert(pNewPage != NULL);
     pageCount++;
     //printf("pageCount: %d\n", pageCount);
+    if(sHT->entriesPerPage < BITS_PER_BYTE ){
+        pNewPage->valid = (BITMAP*) MALLOC(1); //Allocate 1 byte for less than case
+    }
+    else{
     pNewPage->valid = (BITMAP*) MALLOC(sHT->entriesPerPage / BITS_PER_BYTE);
+    }
     assert(pNewPage->valid != NULL);
     pNewPage->entries = (hashEntry*) MALLOC(sizeof (hashEntry) * sHT->entriesPerPage);
     assert(pNewPage->entries != NULL);
@@ -160,7 +165,7 @@ int initHT(UINT32 HTBucketCount, UINT8 entriesPerPage) {
 #ifdef VMALLOC
     vmPCM = PCMStructPtr;
 #endif
-    sHT = (hashTbl*) MALLOC(sizeof (sHT));
+    sHT = (hashTbl*) MALLOC(sizeof (*sHT));
     assert(sHT != NULL);
     memset(sHT, 0, sizeof (sHT));
 
