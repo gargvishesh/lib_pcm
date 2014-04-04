@@ -257,7 +257,8 @@ UINT32 getHashValue(char *attr, UINT32 attrSize) {
 }
 
 UINT32 getBucketId(char *attr, UINT32 attrSize) {
-    return (PJWHash(attr, attrSize) % sHT->HTBucketCount);
+    //return (PJWHash(attr, attrSize) % sHT->HTBucketCount);
+    return (*(int*)(attr))%sHT->HTBucketCount;
 }
 //Insert New Record in HT
 
