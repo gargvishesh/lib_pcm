@@ -1,6 +1,6 @@
-CC = gcc -g
+CC = gcc -m32 -O3
 
-CFLAGS = -c -Wall 
+CFLAGS = -c -Wall
 
 HASH_INCLUDE = -I $(CURDIR)/../GeneralHashFunctions_-_C/
 VMEM_INCLUDE = -I $(CURDIR)/../vmalloc_mem/include
@@ -11,10 +11,10 @@ LIB_HASHING = $(CURDIR)/../GeneralHashFunctions_-_C/GeneralHashFunctions.o
 all: libHashTable.o libSorting.o qsort.o libGBHashTable.o
 
 libHashTable.o: hashTable.c
-	$(CC) $(CFLAGS) $(VMEM_INCLUDE) $(HASH_INCLUDE) -DVMALLOC hashTable.c -o libHashTable.o
+	$(CC) $(CFLAGS) $(VMEM_INCLUDE) $(HASH_INCLUDE) hashTable.c -o libHashTable.o
 	
 libSorting.o: sorting.c
-	$(CC) $(CFLAGS) $(VMEM_INCLUDE) -DVMALLOC -DUNDO sorting.c -o libSorting.o
+	$(CC) $(CFLAGS) $(VMEM_INCLUDE) -DUNDO sorting.c -o libSorting.o
 #libSorting.o: sorting.c
 	#$(CC) $(CFLAGS) $(VMEM_INCLUDE) -DUNDO sorting.c -o libSorting.o
 	
@@ -22,7 +22,7 @@ qsort.o: qsort.c
 	$(CC) $(CFLAGS) -DUNDO qsort.c -o qsort.o
 
 libGBHashTable.o: GB_hashTable.c
-	$(CC) $(CFLAGS) $(VMEM_INCLUDE) $(HASH_INCLUDE) -DVMALLOC GB_hashTable.c -o libGBHashTable.o
+	$(CC) $(CFLAGS) $(VMEM_INCLUDE) $(HASH_INCLUDE) GB_hashTable.c -o libGBHashTable.o
 
 clean:
 	rm -rf *.o *.out
